@@ -10,6 +10,7 @@ const S = {
   sources: [],      // {name, bytes, pdf}
   pages: [],        // {uid, src, idx, rot, nat, w, h, annots[]}  (src -1 = página em branco)
   tool: 'view',
+  edit: false,
   view: 'read',
   zoom: 1,
   color: '#e11d48',
@@ -79,8 +80,8 @@ function afterRestore() {
   refresh(); syncButtons();
 }
 function syncButtons() {
-  $('#btnUndo').disabled = !S.undo.length;
-  $('#btnRedo').disabled = !S.redo.length;
+  $$('#btnUndo,#mUndo').forEach(b => b.disabled = !S.undo.length);
+  $$('#btnRedo,#mRedo').forEach(b => b.disabled = !S.redo.length);
   $('#btnSave').disabled = !hasDoc();
   updateGridInfo();
 }
@@ -256,6 +257,16 @@ function updateFab() {
   S.current = Math.min(currentPageIndex(), Math.max(0, S.pages.length - 1));
   $('#fabPage').textContent = `${S.current + 1} / ${S.pages.length}`;
 }
+let lastTop = 0;
+$('#read').addEventListener('scroll', () => {
+  const t = $('#read').scrollTop, d = t - lastTop;
+  if (S.edit || S.view !== 'read') { lastTop = t; return; }
+  if (d > 12 && t > 120) { document.body.classList.add('hidebars'); lastTop = t; }
+  else if (d < -12) { document.body.classList.remove('hidebars'); lastTop = t; }
+  else if (Math.abs(d) > 40) lastTop = t;
+}, { passive: true });
+const setTopH = () => document.documentElement.style.setProperty('--topH', $('#top').offsetHeight + 'px');
+setTopH(); window.addEventListener('resize', setTopH);
 $('#read').addEventListener('scroll', () => { clearTimeout(updateFab._t); updateFab._t = setTimeout(updateFab, 60); }, { passive: true });
 
 /* ---------- Anotar (desenhar, texto etc.) ---------- */
@@ -364,16 +375,31 @@ function updateGridInfo() {
 }
 
 /* ============ Vistas ============ */
+const HINTS = { view: 'Role a página com o dedo', text: 'Toque onde quer escrever', draw: 'Arraste o dedo para desenhar', hl: 'Arraste sobre o trecho para marcar', wo: 'Arraste para cobrir um trecho', erase: 'Toque numa anotação para apagar' };
+function setHint() { const h = $('#toolHint'); if (h) h.textContent = HINTS[S.tool] || ''; }
+function syncChrome() {
+  const doc = hasDoc(), rd = S.view === 'read';
+  $('#toolbar').hidden = !doc || !rd || !S.edit;
+  $('#vRead').classList.toggle('on', rd && !S.edit);
+  $('#vEdit').classList.toggle('on', rd && S.edit);
+  $('#vGrid').classList.toggle('on', S.view === 'grid');
+  if (!S.edit) {
+    S.tool = 'view';
+    $$('#tools button').forEach(x => x.classList.toggle('on', x.dataset.tool === 'view'));
+    $('#read').dataset.tool = 'view';
+    setHint();
+  }
+  if (!rd || S.edit) document.body.classList.remove('hidebars');
+}
 function showView(v) {
   S.view = v;
   const doc = hasDoc();
   $('#empty').hidden = doc;
   $('#read').hidden = !doc || v !== 'read';
   $('#grid').hidden = !doc || v !== 'grid';
-  $('#toolbar').hidden = !doc || v !== 'read';
   $('#fab').hidden = !doc || v !== 'read';
   $('#gridbar').hidden = !doc || v !== 'grid';
-  $('#vRead').classList.toggle('on', v === 'read'); $('#vGrid').classList.toggle('on', v === 'grid');
+  syncChrome();
   if (doc) {
     if (v === 'read') {
       buildRead();
@@ -519,13 +545,24 @@ async function buildPdf(list) {
 }
 
 const isNative = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-async function deliverNative(bytes, name) {
-  const { Filesystem, Share } = window.Capacitor.Plugins;
+async function writeCache(bytes, name) {
+  const { Filesystem } = window.Capacitor.Plugins;
   let bin = ''; const ch = 0x8000;
   for (let i = 0; i < bytes.length; i += ch) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + ch));
-  const r = await Filesystem.writeFile({ path: name, data: btoa(bin), directory: 'CACHE', recursive: true });
+  return Filesystem.writeFile({ path: name, data: btoa(bin), directory: 'CACHE', recursive: true });
+}
+async function deliverNative(bytes, name) {
+  const { Share } = window.Capacitor.Plugins;
+  const r = await writeCache(bytes, name);
   try { await Share.share({ title: name, url: r.uri, dialogTitle: 'Salvar, enviar ou abrir o PDF' }); }
   catch (e) { if (!/cancel/i.test(String(e && e.message))) toast('Não consegui abrir o menu de compartilhar', 4000); }
+}
+let printPlugin;
+async function printNative(bytes, name) {
+  const r = await writeCache(bytes, name);
+  printPlugin = printPlugin || window.Capacitor.registerPlugin('PdfPrint');
+  try { await printPlugin.print({ path: decodeURIComponent(r.uri.replace(/^file:\/\//, '')), name }); }
+  catch (e) { toast('Não consegui abrir a impressão; abrindo o menu de compartilhar', 4000); await deliverNative(bytes, name); }
 }
 
 async function deliver(bytes, name, { share = false } = {}) {
@@ -551,19 +588,23 @@ $('#mShare').onclick = async () => {
   try { busy(true, 'Preparando…'); const bytes = await buildPdf(S.pages); await deliver(bytes, baseName() + '-editado.pdf', { share: true }); }
   catch (e) { toast('Erro: ' + e.message, 5000); } finally { busy(false); }
 };
-$('#mPrint').onclick = async () => {
-  closeMenu(); if (!hasDoc()) return;
+async function doPrint() {
+  if (!hasDoc()) return;
   try {
-    busy(true, 'Preparando…');
+    busy(true, 'Preparando impressão…');
     const bytes = await buildPdf(S.pages);
+    const name = baseName() + '-editado.pdf';
+    if (isNative()) { await printNative(bytes, name); return; }
     const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-    if (isNative()) { await deliverNative(bytes, baseName() + '-editado.pdf'); return; }
     if (matchMedia('(pointer:coarse)').matches) { window.open(url, '_blank'); return; }
     const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
     f.src = url; document.body.appendChild(f);
     f.onload = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch { window.open(url, '_blank'); } };
   } catch (e) { toast('Erro: ' + e.message, 5000); } finally { busy(false); }
-};
+}
+$('#mPrint').onclick = () => { closeMenu(); doPrint(); };
+$('#btnPrint').onclick = doPrint;
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'p') { e.preventDefault(); doPrint(); } });
 
 /* ============ Menu e eventos gerais ============ */
 function closeMenu() { $('#menu').hidden = true; }
@@ -581,9 +622,17 @@ $('#btnOpen').onclick = $('#btnOpen2').onclick = () => $('#fileIn').click();
 $('#fileIn').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) openFile(f); };
 $('#fileMerge').onchange = e => { const fs = [...e.target.files]; e.target.value = ''; if (fs.length) mergeFiles(fs); };
 
-$('#vRead').onclick = () => showView('read');
-$('#vGrid').onclick = () => { if (S.view === 'read') S.current = currentPageIndex(); showView('grid'); };
+function setMode(m) {
+  if (m === 'grid') { if (S.view === 'read') S.current = currentPageIndex(); S.edit = false; showView('grid'); return; }
+  S.edit = m === 'edit';
+  if (S.view !== 'read') showView('read'); else syncChrome();
+}
+$('#vRead').onclick = () => setMode('read');
+$('#vEdit').onclick = () => setMode('edit');
+$('#vGrid').onclick = () => setMode('grid');
 $('#btnUndo').onclick = doUndo; $('#btnRedo').onclick = doRedo;
+$('#mUndo').onclick = () => { closeMenu(); doUndo(); };
+$('#mRedo').onclick = () => { closeMenu(); doRedo(); };
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); }
   if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); doRedo(); }
@@ -594,6 +643,7 @@ $$('#tools button').forEach(b => b.onclick = () => {
   S.tool = b.dataset.tool;
   $$('#tools button').forEach(x => x.classList.toggle('on', x === b));
   $('#read').dataset.tool = S.tool;
+  setHint();
 });
 $$('#colors button').forEach(b => b.onclick = () => {
   S.color = b.dataset.c; $$('#colors button').forEach(x => x.classList.toggle('on', x === b));

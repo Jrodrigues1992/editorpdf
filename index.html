@@ -13,29 +13,34 @@
 <body>
 
 <header id="top">
-  <button id="btnOpen" class="btn">📂 Abrir</button>
-  <div id="fname" title="">Nenhum arquivo</div>
+  <button id="btnOpen" class="icon" title="Abrir PDF">📂</button>
   <div class="seg" id="viewSeg">
-    <button id="vRead" class="on">📖 Ler</button>
-    <button id="vGrid">▦ Páginas</button>
+    <button id="vRead" class="on">Ler</button>
+    <button id="vEdit">Editar</button>
+    <button id="vGrid">Páginas</button>
   </div>
   <div class="spacer"></div>
-  <button id="btnUndo" class="icon" title="Desfazer" disabled>↶</button>
-  <button id="btnRedo" class="icon" title="Refazer" disabled>↷</button>
-  <button id="btnSave" class="btn primary" disabled>💾 Salvar</button>
+  <button id="btnPrint" class="icon" title="Imprimir">🖨</button>
+  <button id="btnSave" class="icon save" title="Salvar" disabled>💾</button>
   <button id="btnMore" class="icon" title="Mais opções">⋮</button>
 </header>
 
 <div id="toolbar" hidden>
-  <div class="tools" id="tools">
-    <button data-tool="view" class="on">✋ Mover</button>
-    <button data-tool="text">🅣 Texto</button>
-    <button data-tool="draw">✎ Desenhar</button>
-    <button data-tool="hl">🖍 Marca-texto</button>
-    <button data-tool="wo">⬜ Tarja branca</button>
-    <button data-tool="erase">⌫ Borracha</button>
+  <div class="trow">
+    <div class="tools" id="tools">
+      <button data-tool="view" class="on" title="Mover">✋</button>
+      <button data-tool="text" title="Texto">🅣</button>
+      <button data-tool="draw" title="Desenhar">✎</button>
+      <button data-tool="hl" title="Marca-texto">🖍</button>
+      <button data-tool="wo" title="Tarja branca">⬜</button>
+      <button data-tool="erase" title="Borracha">⌫</button>
+    </div>
+    <div class="uredo">
+      <button id="btnUndo" class="icon" title="Desfazer" disabled>↶</button>
+      <button id="btnRedo" class="icon" title="Refazer" disabled>↷</button>
+    </div>
   </div>
-  <div class="opts">
+  <div class="trow">
     <div id="colors">
       <button data-c="#111111" style="background:#111111"></button>
       <button data-c="#e11d48" style="background:#e11d48" class="on"></button>
@@ -50,6 +55,7 @@
       <option value="36">Enorme</option>
     </select>
   </div>
+  <div id="toolHint">Role a página com o dedo</div>
 </div>
 
 <main id="stage">
@@ -93,8 +99,11 @@
 </div>
 
 <div id="menu" hidden>
+  <div id="fname">Nenhum arquivo</div>
+  <button id="mUndo" disabled>↶ Desfazer</button>
+  <button id="mRedo" disabled>↷ Refazer</button>
   <button id="mMerge">➕ Juntar outro PDF</button>
-  <button id="mShare">📤 Compartilhar</button>
+  <button id="mShare">📤 Compartilhar / enviar</button>
   <button id="mPrint">🖨 Imprimir</button>
   <button id="mClose">✖ Fechar documento</button>
 </div>

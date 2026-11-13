@@ -36,6 +36,9 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Instalar plugin de impressão
+        run: cp android-src/*.java android/app/src/main/java/com/jean/editorpdf/
+
       - name: Permitir abrir PDFs de outros apps
         run: python3 scripts/patch_manifest.py
 

@@ -1,0 +1,68 @@
+name: Gerar APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Preparar arquivos web
+        run: |
+          mkdir www
+          cp -r index.html style.css app.js sw.js manifest.json icon-192.png icon-512.png lib www/
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Criar projeto Android
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: Aplicar ícone do app
+        run: |
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            n=${d%%:*}; s=${d##*:}
+            for f in ic_launcher ic_launcher_round ic_launcher_foreground; do
+              convert icon-512.png -resize ${s}x${s} android/app/src/main/res/mipmap-$n/$f.png
+            done
+          done
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+
+      - name: Compilar APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Guardar APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk editor-pdf.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: editor-pdf-apk
+          path: editor-pdf.apk
+
+      - name: Publicar na aba Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --cleanup-tag -y || true
+          gh release create apk-latest editor-pdf.apk --title "Editor de PDF (APK)" --notes "APK para instalar no Android. Baixe o arquivo editor-pdf.apk."

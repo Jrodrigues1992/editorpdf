@@ -518,7 +518,18 @@ async function buildPdf(list) {
   return out.save();
 }
 
+const isNative = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+async function deliverNative(bytes, name) {
+  const { Filesystem, Share } = window.Capacitor.Plugins;
+  let bin = ''; const ch = 0x8000;
+  for (let i = 0; i < bytes.length; i += ch) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + ch));
+  const r = await Filesystem.writeFile({ path: name, data: btoa(bin), directory: 'CACHE', recursive: true });
+  try { await Share.share({ title: name, url: r.uri, dialogTitle: 'Salvar, enviar ou abrir o PDF' }); }
+  catch (e) { if (!/cancel/i.test(String(e && e.message))) toast('Não consegui abrir o menu de compartilhar', 4000); }
+}
+
 async function deliver(bytes, name, { share = false } = {}) {
+  if (isNative()) return deliverNative(bytes, name);
   const blob = new Blob([bytes], { type: 'application/pdf' });
   if (share && navigator.canShare) {
     const f = new File([blob], name, { type: 'application/pdf' });
@@ -546,6 +557,7 @@ $('#mPrint').onclick = async () => {
     busy(true, 'Preparando…');
     const bytes = await buildPdf(S.pages);
     const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    if (isNative()) { await deliverNative(bytes, baseName() + '-editado.pdf'); return; }
     if (matchMedia('(pointer:coarse)').matches) { window.open(url, '_blank'); return; }
     const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
     f.src = url; document.body.appendChild(f);

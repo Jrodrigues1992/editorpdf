@@ -1,0 +1,6 @@
+{
+  "appId": "com.jean.editorpdf",
+  "appName": "Editor de PDF",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#e11d48">
+<title>Editor de PDF</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="top">
+  <button id="btnOpen" class="btn">📂 Abrir</button>
+  <div id="fname" title="">Nenhum arquivo</div>
+  <div class="seg" id="viewSeg">
+    <button id="vRead" class="on">📖 Ler</button>
+    <button id="vGrid">▦ Páginas</button>
+  </div>
+  <div class="spacer"></div>
+  <button id="btnUndo" class="icon" title="Desfazer" disabled>↶</button>
+  <button id="btnRedo" class="icon" title="Refazer" disabled>↷</button>
+  <button id="btnSave" class="btn primary" disabled>💾 Salvar</button>
+  <button id="btnMore" class="icon" title="Mais opções">⋮</button>
+</header>
+
+<div id="toolbar" hidden>
+  <div class="tools" id="tools">
+    <button data-tool="view" class="on">✋ Mover</button>
+    <button data-tool="text">🅣 Texto</button>
+    <button data-tool="draw">✎ Desenhar</button>
+    <button data-tool="hl">🖍 Marca-texto</button>
+    <button data-tool="wo">⬜ Tarja branca</button>
+    <button data-tool="erase">⌫ Borracha</button>
+  </div>
+  <div class="opts">
+    <div id="colors">
+      <button data-c="#111111" style="background:#111111"></button>
+      <button data-c="#e11d48" style="background:#e11d48" class="on"></button>
+      <button data-c="#2563eb" style="background:#2563eb"></button>
+      <button data-c="#16a34a" style="background:#16a34a"></button>
+      <button data-c="#facc15" style="background:#facc15"></button>
+    </div>
+    <select id="sizeSel" title="Tamanho">
+      <option value="12">Pequeno</option>
+      <option value="16" selected>Médio</option>
+      <option value="24">Grande</option>
+      <option value="36">Enorme</option>
+    </select>
+  </div>
+</div>
+
+<main id="stage">
+  <section id="empty">
+    <div class="card-empty">
+      <div class="big">📄</div>
+      <h1>Editor de PDF</h1>
+      <p>Leia, gire, reorganize, anote e salve seus PDFs.<br>Tudo é feito no seu aparelho — nada é enviado para a internet.</p>
+      <button id="btnOpen2" class="btn primary big-btn">📂 Abrir um PDF</button>
+      <p class="hint">Dica: no celular, instale o app e use <b>Compartilhar → Editor de PDF</b> em qualquer PDF.</p>
+    </div>
+  </section>
+  <section id="read" hidden></section>
+  <section id="grid" hidden></section>
+</main>
+
+<!-- Botões flutuantes do modo Ler -->
+<div id="fab" hidden>
+  <button id="fabRotL" class="rot" title="Girar página para a esquerda">↺</button>
+  <button id="fabPage" class="pg" title="Ir para a página">1 / 1</button>
+  <button id="fabRotR" class="rot" title="Girar página para a direita">↻</button>
+  <span class="sep"></span>
+  <button id="zoomOut" class="z" title="Diminuir">−</button>
+  <button id="zoomIn" class="z" title="Aumentar">+</button>
+</div>
+
+<!-- Barra de ações do modo Páginas -->
+<div id="gridbar" hidden>
+  <div id="gridInfo">Toque nas páginas para selecionar</div>
+  <div class="acts">
+    <button id="gRotL" class="rot">↺<small>Girar</small></button>
+    <button id="gRotR" class="rot">↻<small>Girar</small></button>
+    <button id="gLeft">◀<small>Mover</small></button>
+    <button id="gRight">▶<small>Mover</small></button>
+    <button id="gDup">⧉<small>Duplicar</small></button>
+    <button id="gBlank">＋<small>Em branco</small></button>
+    <button id="gExtract">⤓<small>Extrair</small></button>
+    <button id="gDel" class="danger">🗑<small>Excluir</small></button>
+    <button id="gAll">☑<small>Todas</small></button>
+  </div>
+</div>
+
+<div id="menu" hidden>
+  <button id="mMerge">➕ Juntar outro PDF</button>
+  <button id="mShare">📤 Compartilhar</button>
+  <button id="mPrint">🖨 Imprimir</button>
+  <button id="mClose">✖ Fechar documento</button>
+</div>
+
+<dialog id="textDlg">
+  <form method="dialog">
+    <h3>Adicionar texto</h3>
+    <textarea id="textVal" rows="3" placeholder="Digite o texto…"></textarea>
+    <div class="dlg-act">
+      <button value="cancel" class="btn">Cancelar</button>
+      <button value="ok" id="textOk" class="btn primary">Adicionar</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" hidden></div>
+<div id="busy" hidden><div class="spin"></div><span id="busyTxt">Aguarde…</span></div>
+
+<input type="file" id="fileIn" accept="application/pdf,.pdf" hidden>
+<input type="file" id="fileMerge" accept="application/pdf,.pdf" multiple hidden>
+
+<script src="lib/pdf-lib.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

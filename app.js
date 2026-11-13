@@ -625,6 +625,26 @@ document.addEventListener('drop', e => {
 });
 
 /* ============ Inicialização / PWA ============ */
+async function openFromUrl(url) {
+  try {
+    if (S.dirty && !confirm('Abrir outro PDF e descartar as alterações não salvas?')) return;
+    const { Filesystem } = window.Capacitor.Plugins;
+    const r = await Filesystem.readFile({ path: url });
+    const bin = atob(r.data); const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    let name = 'documento.pdf';
+    try { const seg = decodeURIComponent(url.split('?')[0]).split(/[\/:]/).pop(); if (/\.pdf$/i.test(seg)) name = seg; } catch {}
+    await openFile({ name }, bytes);
+  } catch (e) { toast('Não consegui abrir este PDF', 4000); }
+}
+async function setupNativeOpen() {
+  if (!isNative()) return;
+  const { App } = window.Capacitor.Plugins;
+  try { const l = await App.getLaunchUrl(); if (l && l.url) openFromUrl(l.url); } catch {}
+  App.addListener('appUrlOpen', e => { if (e && e.url) openFromUrl(e.url); });
+}
+setupNativeOpen();
+
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 (async function boot() {
   showView('read');

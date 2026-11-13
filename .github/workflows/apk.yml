@@ -36,6 +36,9 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Permitir abrir PDFs de outros apps
+        run: python3 scripts/patch_manifest.py
+
       - name: Aplicar ícone do app
         run: |
           pip install pillow
